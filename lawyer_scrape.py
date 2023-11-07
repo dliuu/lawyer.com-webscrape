@@ -54,36 +54,40 @@ def directory_to_cleaned_list(dir:str):
 
   #print('length of cleaned URL list: ' + str(len(unique_URLs)))
 
-def scrape(url:str):
-  ''' Takes a url from the Question page of Justia and outputs a dictionary in the form:
-  {question_title: question_title,
-  question_description: question_description,
-  answer1: (answer1, upvote_count),
-  answer2: (answer2, upvote_count)}
+def scrape(url:str, filename: str):
+  ''' Takes a url from the Question page of Lawyers.com and writes to a .csv
+  in a 2-column format Question, Answer(s)
   '''
   print('scraping ' + str(url))
-  return_dict = {}
+  #Scrapes Data
+  rows = []
+  header = ['Question', 'Answer(s)']
 
-  url_lib= urllib.request.urlopen(url).read()
-  soup = BeautifulSoup(url_lib, 'html.parser')
-  data = json.loads(soup.find('script', type='application/ld+json').text)
+  response = requests.get(
+  url='https://proxy.scrapeops.io/v1/',
+  params={
+      'api_key': 'd02ca450-7b42-4789-8528-ecf96ea1a150',
+      'url': url, 
+      'residential': 'true', 
+  },
+)
 
-  question_title = data['mainEntity']['name']
-  question_description = data['mainEntity']['text']
-
-  return_dict['question_title'] = question_title
-  return_dict['question_description'] = question_description
-
-  all_answers = data['mainEntity']['suggestedAnswer']
-
-
-  for idx, a_obj in enumerate(all_answers):
-    answer = a_obj['text']
-    upvotes = a_obj['upvoteCount']
-    answer_tuple = tuple([answer, upvotes])
-    return_dict['answer' + str(idx)] = answer_tuple
+  soup = BeautifulSoup(response.content, 'html.parser')
+  data_q = soup.find_all('div', {'class': "qaDetailsContent"})
+  data_a = soup.find_all('div', {'class': "small-12 columns qaDetailsContent"})
   
-  return return_dict
+  rows.append([data_q, data_a])
+
+  #Wrtie to .csv
+  file_exists = os.path.isfile(filename)
+
+  with open(filename, 'a', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        
+        if not file_exists:
+            writer.writerow(header)
+
+        writer.writerows(rows)
 
 def save_to_csv(data, filename):
     header = ['question_title', 'question_description', 'answer', 'upvote_count']
@@ -111,7 +115,26 @@ def save_to_csv(data, filename):
 directory = 'Justia_rawURLs'
 sub_url = "https://answers.justia.com/question/"
 
-url_list = directory_to_cleaned_list(directory)
-for url in url_list:
-  save_to_csv(scrape(url), 'Justia_data.csv')
+
+
+
+'''
+url = "https://www.lawyers.com/ask-a-lawyer/real-estate/as-a-seller-can-i-cancel-the-sale-if-i-am-not-able-get-the-liens-removed-before-closing--will-there-be-a-penalty-1537928.html"
+
+response = requests.get(
+  url='https://proxy.scrapeops.io/v1/',
+  params={
+      'api_key': 'd02ca450-7b42-4789-8528-ecf96ea1a150',
+      'url': url, 
+      'residential': 'true', 
+  },
+)
+
+soup = BeautifulSoup(response.content, 'html.parser')
+data_q = soup.find_all('div', {'class': "qaDetailsContent"})
+print(data_q)
+
+data_a = soup.find_all('div', {'class': "small-12 columns qaDetailsContent"})
+print(data_a)'''
+
 
